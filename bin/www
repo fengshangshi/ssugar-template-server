@@ -1,0 +1,62 @@
+#!/usr/bin/env node
+var fs = require('fs');
+var path = require('path');
+var cp = require('child_process');
+
+var cmd = require('commander');
+
+var pid_path = path.join(__dirname, '../logs/sugar.pid');
+var index_js = path.join(__dirname, '../index.js');
+
+// commander
+cmd.version(require('../package').version)
+
+// start server
+cmd
+		.command('start')
+		.description('start server')
+		.action(function() {
+				start_server();
+		});
+
+// restart server
+cmd
+		.command('restart')
+		.description('restart server')
+		.action(function() {
+				if (!fs.existsSync(pid_path)) {
+						console.log('服务还未启动, 请使用start命令');
+						return false;
+				}
+				stop_server();
+				start_server();
+		});
+
+// stop server
+cmd
+		.command('stop')
+		.description('stop server')
+		.action(function() {
+				stop_server();
+		});
+
+cmd.parse(process.argv);
+
+function start_server() {
+		var pid = cp.spawn('node', [index_js]).pid;
+		fs.writeFileSync(pid_path, pid);
+}
+
+function stop_server() {
+		if (!fs.existsSync(pid_path)) return false;
+
+		var pid = fs.readFileSync(pid_path, 'utf-8');
+		cp.spawn('kill', ['-s', '9', pid]);
+		fs.unlinkSync(pid_path);
+}
+
+// kill -s 9
+process.on('SIGINT', function() {
+		stop_server();
+		process.exit(0);
+});
